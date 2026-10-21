@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyrolysis Analytical Dashboard (GESS)</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* บังคับภาพรวมหน้าจอให้ล็อกความสูง 100% พอดีจอไร้การเลื่อนขึ้นลง */
+        body { 
+            background-color: #f8fafc;
+            font-family: 'Inter', 'Sarabun', sans-serif;
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+            height: 100vh;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* สไตล์ Navigation Bar ด้านบน */
+        .navbar-custom {
+            background-color: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 12px 24px;
+        }
+        .logo-brand {
+            font-weight: 800;
+            font-size: 1.4rem;
+            color: #0f172a;
+            text-decoration: none;
+            letter-spacing: -0.03em;
+            cursor: pointer;
+        }
+        .nav-link-custom {
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: #64748b;
+            text-decoration: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .nav-link-custom:hover {
+            color: #0f172a;
+            background-color: #f1f5f9;
+        }
+        .nav-link-custom.active {
+            color: #2563eb;
+            background-color: #eff6ff;
+            font-weight: 600;
+        }
+        
+        /* พื้นที่ควบคุมเนื้อหาแต่ละหน้า */
+        .main-workspace {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        .tab-view {
+            width: 100%;
+            height: 100%;
+        }
+        .sub-page-scroller {
+            height: 100%;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        
+        /* สไตล์โครงสร้างโมเดลเดิมภายใน Dashboard */
+        .card { 
+            border-radius: 8px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05); 
+            margin-bottom: 10px;
+            border: 1px solid #e2e8f0; 
+            background-color: #ffffff;
+        }
+        .card-header { 
+            background-color: #ffffff;
+            border-bottom: 1px solid #f1f5f9; 
+            font-weight: 600; 
+            font-size: 0.9rem;
+            color: #1e293b; 
+            padding: 10px 16px;
+            border-radius: 8px 8px 0 0 !important;
+        }
+        .card-body { padding: 12px 16px; }
+        .form-label { font-weight: 500; font-size: 0.8rem; color: #475569; margin-bottom: 4px; }
+        .form-control, .form-select { border-radius: 6px; border: 1px solid #cbd5e1; padding: 6px 12px; font-size: 0.85rem; color: #0f172a; }
+        .input-group-text { background-color: #f1f5f9; border: 1px solid #cbd5e1; color: #64748b; font-size: 0.85rem; padding: 6px 10px; }
+        
+        /* การ์ดประเมินผลลัพธ์ */
+        .result-card { background-color: #ffffff; border: 1px solid #e2e8f0; padding: 12px 16px; border-radius: 8px; height: 100%; position: relative; }
+        .result-card::before { content: ''; position: absolute; top: 0; left: 0; bottom: 0; width: 4px; border-radius: 8px 0 0 8px; }
+        .card-oil::before { background-color: #0284c7; }
+        .card-char::before { background-color: #475569; }
+        .card-gas::before { background-color: #ea580c; }
+        .card-sulphur::before { background-color: #eab308; }
+        .card-cetane::before { background-color: #16a34a; }
+        .card-chlorine::before { background-color: #9333ea; }
+        .result-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 2px; }
+        .result-model-tag { font-size: 0.7rem; color: #059669; font-weight: 600; margin-bottom: 8px; }
+        .result-val { font-size: 1.5rem; font-weight: 700; color: #0f172a; margin: 0; }
+        
+        .btn-action-primary { background-color: #0f172a; color: #ffffff; border: none; font-weight: 500; padding: 10px 20px; border-radius: 6px; }
+        .btn-action-primary:hover { background-color: #1e293b; color: #ffffff; }
+        .btn-sub-action { border: 1px solid #cbd5e1; background-color: #ffffff; color: #334155; font-weight: 500; font-size: 0.8rem; padding: 4px 10px; border-radius: 6px; }
+        
+        .hidden-section { display: none; }
+        .total-badge { font-size: 0.8rem; padding: 4px 10px; border-radius: 4px; font-weight: 600; }
+        .form-check-input:checked { background-color: #0f172a; border-color: #0f172a; }
+
+        /* สไตล์เฉพาะสำหรับหน้า Researcher & About */
+        .researcher-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; transition: transform 0.2s; }
+        .researcher-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+        .avatar-placeholder { width: 64px; height: 64px; background-color: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 1.5rem; }
+        .about-text { font-size: 1rem; line-height: 1.7; color: #334155; text-align: justify; }
+        .step-box { background-color: #ffffff; border-left: 4px solid #2563eb; padding: 16px; border-radius: 0 8px 8px 0; margin-bottom: 12px; border: 1px solid #e2e8f0; border-left-width: 4px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar-custom d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2" onclick="switchTab('dashboard')">
+        <span class="logo-brand">
+            <i class="fas fa-cubes text-primary me-2"></i>GESS 
+            <span style="font-size: 0.85rem; color: #64748b; font-weight: 400; margin-left: 6px;">(Green Energy & Sustainable Solutions Research Laboratory)</span>
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="nav-link-custom active" id="tab-btn-dashboard" onclick="switchTab('dashboard')">Dashboard</span>
+        <span class="nav-link-custom" id="tab-btn-researcher" onclick="switchTab('researcher')">Researcher</span>
+        <span class="nav-link-custom" id="tab-btn-about" onclick="switchTab('about')">About</span>
+    </div>
+</nav>
+
+<div class="main-workspace">
+    
+    <div id="dashboard-tab" class="tab-view d-flex container-fluid px-4 py-3">
+        <div class="row h-100 w-100 m-0">
+            <div class="col-lg-7 d-flex flex-column h-100 overflow-hidden px-2">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-layer-group text-muted me-2"></i> 1. Ingredient Ratio</span>
+                        <span class="badge bg-secondary total-badge" id="total-percent-badge">Total: 0%</span>
+                    </div>
+                    <div class="card-body py-2">
+                        <div id="ingredient-container">
+                            <div class="row mb-1 ingredient-row align-items-center">
+                                <div class="col-7">
+                                    <select class="form-select ingredient-name">
+                                        <option value="LB">Lubricant oil (LB)</option>
+                                        <option value="WT">Waste Tires (WT)</option>
+                                        <option value="TPO">Tire Pyrolysis Oil (TPO)</option>
+                                        <option value="PP">Polypropylene (PP)</option>
+                                        <option value="PS">Polystyrene (PS)</option>
+                                        <option value="PE">Polyethylene (PE)</option>
+                                        <option value="PVC">Polyvinyl Chloride (PVC)</option>
+                                        <option value="PET">Polyethylene Terephthalate (PET)</option>
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <div class="input-group">
+                                        <input type="number" class="form-control ingredient-val" placeholder="0" min="0" max="100" oninput="calculateTotal()">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-1"></div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <button class="btn btn-sub-action" onclick="addIngredientRow()">
+                                <i class="fas fa-plus me-1"></i> Add Raw Material
+                            </button>
+                            <small id="percent-warning" class="text-danger fw-medium" style="display: none !important; font-size: 0.75rem;"><i class="fas fa-exclamation-triangle me-1"></i> All values must sum to 100%</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-vial text-muted me-2"></i> 2. Catalyst</div>
+                    <div class="card-body py-2">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-7">
+                                <select class="form-select" id="catalyst-select" onchange="handleCatalystChange()">
+                                    <option value="None" selected>No Catalyst</option>
+                                    <option value="Catalyst (%)">Catalyst</option>
+                                </select>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="catalyst-val" placeholder="0" min="0" value="0" disabled>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-sliders-h text-muted me-2"></i> 3. Process Conditions</div>
+                    <div class="card-body py-2">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label mb-1">Temperature</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="temp-val" placeholder="400 - 650">
+                                    <span class="input-group-text">°C</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label mb-1">Time</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="time-val" placeholder="30 - 240">
+                                    <span class="input-group-text">min</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header py-2">
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" id="toggle-ultimate" onchange="toggleSection('ultimate-section', this)">
+                                    <label class="form-check-label fw-semibold" for="toggle-ultimate" style="font-size: 0.8rem;">4. Ultimate Analysis</label>
+                                </div>
+                            </div>
+                            <div class="card-body hidden-section bg-light-subtle py-2" id="ultimate-section">
+                                <div class="row g-1">
+                                    <div class="col-4"><label class="form-label font-monospace" style="font-size: 0.7rem; margin:0;">Carbon(%)</label><input type="number" id="ult-c" class="form-control form-control-sm"></div>
+                                    <div class="col-4"><label class="form-label font-monospace" style="font-size: 0.7rem; margin:0;">Hydrogen(%)</label><input type="number" id="ult-h" class="form-control form-control-sm"></div>
+                                    <div class="col-4"><label class="form-label font-monospace" style="font-size: 0.7rem; margin:0;">Nitrogen(%)</label><input type="number" id="ult-n" class="form-control form-control-sm"></div>
+                                    <div class="col-6 mt-1"><label class="form-label font-monospace" style="font-size: 0.7rem; margin:0;">Sulfur(%)</label><input type="number" id="ult-s" class="form-control form-control-sm"></div>
+                                    <div class="col-6 mt-1"><label class="form-label font-monospace" style="font-size: 0.7rem; margin:0; color: #2563eb;">Other (Auto)</label><input type="number" id="ult-o" class="form-control form-control-sm bg-primary-subtle text-primary fw-bold" readonly></div>
+                                    <div class="col-12 mt-1 text-center">
+                                        <small id="ultimate-warning" class="text-danger fw-medium" style="display: none; font-size: 0.7rem;">
+                                            <i class="fas fa-exclamation-triangle me-1"></i> C+H+N+S combined add up to over 100%
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card h-100">
+                            <div class="card-header py-2">
+                                <div class="form-check form-switch m-0">
+                                    <input class="form-check-input" type="checkbox" id="toggle-proximate" onchange="toggleSection('proximate-section', this)">
+                                    <label class="form-check-label fw-semibold" for="toggle-proximate" style="font-size: 0.8rem;">5. Proximate Analysis</label>
+                                </div>
+                            </div>
+                            <div class="card-body hidden-section bg-light-subtle py-2" id="proximate-section">
+                                <div class="row g-1">
+                                    <div class="col-6"><label class="form-label" style="font-size: 0.7rem; margin:0;">Ash (%)</label><input type="number" id="prox-ash" class="form-control form-control-sm"></div>
+                                    <div class="col-6"><label class="form-label" style="font-size: 0.7rem; margin:0;">Fixed Carbon (%)</label><input type="number" id="prox-fc" class="form-control form-control-sm"></div>
+                                    <div class="col-6 mt-1"><label class="form-label" style="font-size: 0.7rem; margin:0;">Volatile (%)</label><input type="number" id="prox-vm" class="form-control form-control-sm"></div>
+                                    <div class="col-6 mt-1"><label class="form-label" style="font-size: 0.7rem; margin:0;">Moisture (%)</label><input type="number" id="prox-m" class="form-control form-control-sm"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-action-primary w-100 mt-2 py-2 text-uppercase font-monospace tracking-wide shadow-sm" onclick="predict()" id="predict-btn">
+                    <i class="fas fa-calculator me-2"></i> Execute Prediction
+                </button>
+            </div>
+
+            <div class="col-lg-5 d-flex flex-column h-100 px-2">
+                <div class="card h-100 mb-0 d-flex flex-column">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-dark text-white border-0 py-2">
+                        <span><i class="fas fa-analytics me-2"></i> Predictions Output</span>
+                        <i class="fas fa-microchip text-muted"></i>
+                    </div>
+                    <div class="card-body bg-light-subtle p-2 flex-grow-1">
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <div class="result-card card-oil">
+                                    <div class="result-title">Oil</div>
+                                    <div class="result-model-tag"><i class="fas fa-check-circle me-1"></i>Accuracy (R²): 78.92%</div>
+                                    <p class="result-val" id="res-oil">—</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="result-card card-char">
+                                    <div class="result-title">Char</div>
+                                    <div class="result-model-tag"><i class="fas fa-check-circle me-1"></i>Accuracy (R²): 76.46%</div>
+                                    <p class="result-val" id="res-char">—</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="result-card card-gas">
+                                    <div class="result-title">Gas</div>
+                                    <div class="result-model-tag" style="color: #6366f1;"><i class="fas fa-balance-scale me-1"></i>Mass Balance Calculated</div>
+                                    <p class="result-val" id="res-gas">—</p>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="result-card card-sulphur">
+                                    <div class="result-title">Sulphur Content wt%</div>
+                                    <div class="result-model-tag"><i class="fas fa-check-circle me-1"></i>Accuracy (R²): 94.96%</div>
+                                    <p class="result-val" id="res-sulphur">—</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="result-card card-cetane">
+                                    <div class="result-title">Cetane Index</div>
+                                    <div class="result-model-tag"><i class="fas fa-check-circle me-1"></i>Accuracy (R²): 66.34%</div>
+                                    <p class="result-val" id="res-cetane">—</p>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="result-card card-chlorine">
+                                    <div class="result-title">Chlorine (ppm)</div>
+                                    <div class="result-model-tag"><i class="fas fa-check-circle me-1"></i>Accuracy (R²): 80.06%</div>
+                                    <p class="result-val" id="res-chlorine">—</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="reference-notice" class="alert alert-secondary mt-2 mb-0 py-1 px-2 border-0" style="display: none; font-size: 0.7rem; background-color: #f1f5f9; color: #475569;">
+                            <i class="fas fa-database me-1 text-primary"></i> <b>Inferred Chemistry Status:</b> Automated detection and filling of chemical properties has been completed by the system.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="researcher-tab" class="tab-view d-none">
+        <div class="sub-page-scroller">
+            <h4 class="mb-4 fw-bold text-dark"><i class="fas fa-user-friends text-muted me-2"></i>Research Team</h4>
+            <div class="row g-4">
+                
+                <div class="col-md-6">
+                    <div class="researcher-card h-100 d-flex gap-4 align-items-center">
+                        <img src="Natacha Phetyim.png" alt="Natacha Phetyim" class="researcher-avatar shadow-sm" style="width: 180px; height: 250px; object-fit: cover; border-radius: 10%;">
+                        
+                        <div class="flex-grow-1">
+                            <h5 class="fw-bold text-dark mb-1">Natacha Phetyim</h5>
+                            <p class="text-primary fw-medium small mb-2">Ph.D. (Chemical Engineering)</p>
+                            <p class="text-muted mb-2 font-monospace" style="font-size: 0.85rem;">Associate Professor</p>
+                            <p class="text-secondary small mb-3">Department of Chemical Engineering. Faculty of Engineering,<br>Rajamangala University of Technology Thanyaburi</p>
+                            <a href="mailto:nattacha.p@en.rmutt.ac.th" class="btn btn-sm btn-light border small text-secondary"><i class="far fa-envelope me-1 text-primary"></i> nattacha.p@en.rmutt.ac.th</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="researcher-card h-100 d-flex gap-4 align-items-center">
+                        <img src="Phusana Somphan.png" alt="Phusana Somphan" class="researcher-avatar shadow-sm" style="width: 180px; height: 250px; object-fit: cover; border-radius: 10%;">
+                        
+                        <div class="flex-grow-1">
+                            <h5 class="fw-bold text-dark mb-1">Phusana Somphan</h5>
+                            <p class="text-primary fw-medium small mb-2">M.Eng. (Chemical Science and Engineering)</p>
+                            <p class="text-muted mb-2 font-monospace" style="font-size: 0.85rem;">Graduate Student</p>
+                            <p class="text-secondary small mb-3">Department of Chemical Engineering. Faculty of Engineering,<br>Rajamangala University of Technology Thanyaburi</p>
+                            <a href="mailto:phusana.s@en.rmutt.ac.th" class="btn btn-sm btn-light border small text-secondary"><i class="far fa-envelope me-1 text-primary"></i> phusana.s@en.rmutt.ac.th</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="about-tab" class="tab-view d-none">
+        <div class="sub-page-scroller">
+            <div class="card p-4">
+                <h4 class="mb-3 fw-bold text-dark"><i class="fas fa-info-circle text-muted me-2"></i> About the Platform</h4>
+                <p class="about-text mb-4">
+                    To enhance accessibility and promote collaborative engagement within the scientific community, we have designed and implemented the endp web server. This user-friendly platform is openly accessible online at <a href="http://endp.pythonanywhere.com" target="_blank" class="text-primary text-decoration-none fw-medium">http://endp.pythonanywhere.com</a>. Within this framework, we have meticulously provided detailed, step-by-step guidelines to facilitate users in effectively utilizing the endp web server for obtaining specific and desired research outcomes. The unrestricted availability of this resource contributes to the seamless integration of advanced computational tools, fostering a conducive environment for scientific exploration and discovery.
+                </p>
+                
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-list-ol text-muted me-2"></i> Guidelines for Operation</h5>
+                <div class="step-box">
+                    <strong>Step 1:</strong> Access the web server by navigating to <a href="http://endp.pythonanywhere.com" target="_blank" class="text-primary text-decoration-none">http://endp.pythonanywhere.com</a>. Upon initiation, the user interface on the endp web server will be displayed on the computer screen, presenting the primary interface.
+                </div>
+                <div class="step-box">
+                    <strong>Step 2:</strong> Kindly populate the properties of materials and process condition factors in the designated fields. Subsequently, initiate the process by selecting the "Output" button situated at the lower section. The resulting outcome will be the diameter of nano fiber value.
+                </div>
+
+                <div class="alert alert-warning mt-4 mb-0 d-flex align-items-center gap-2 border-0 bg-warning-subtle text-warning-baseline" style="border-radius: 8px;">
+                    <i class="fas fa-comment-alt-dots text-warning fs-5"></i>
+                    <span class="small text-secondary">Should you encounter any challenges in utilization or wish to provide suggestions, please feel free to reach out to us via email at <a href="mailto:sombsuk@kku.ac.th" class="fw-bold text-dark text-decoration-none">sombsuk@kku.ac.th</a></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // ฟังก์ชันการทำหน้าที่สลับแท็บเมนู SPA
+    function switchTab(tabId) {
+        // ซ่อนทุกหน้าแท็บวิว
+        document.querySelectorAll('.tab-view').forEach(view => {
+            view.classList.add('d-none');
+            view.classList.remove('d-flex');
+        });
+        // เอาคลาส Active ออกจากปุ่มนำทางเดิมทั้งหมด
+        document.querySelectorAll('.nav-link-custom').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // แสดงหน้าเว็บที่ถูกเลือก
+        const targetView = document.getElementById(`${tabId}-tab`);
+        if(tabId === 'dashboard') {
+            targetView.classList.remove('d-none');
+            targetView.classList.add('d-flex'); // เฉพาะแดชบอร์ดใช้ d-flex ในการกระจายสัดส่วนกริด
+        } else {
+            targetView.classList.remove('d-none');
+        }
+        // ไฮไลต์สีเมนูที่กำลังใช้งานอยู่ปัจจุบัน
+        document.getElementById(`tab-btn-${tabId}`).classList.add('active');
+    }
+
+    function addIngredientRow() {
+        const container = document.getElementById('ingredient-container');
+        const newRow = document.createElement('div');
+        newRow.className = 'row mb-1 ingredient-row align-items-center';
+        newRow.innerHTML = `
+            <div class="col-7">
+                <select class="form-select form-select-sm ingredient-name">
+                    <option value="LB">Lubricant oil (LB)</option>
+                    <option value="WT">West Tires (WT)</option>
+                    <option value="TPO">Tire Pyrolysis Oil (TPO)</option>
+                    <option value="PP">Polypropylene (PP)</option>
+                    <option value="PS">Polystyrene (PS)</option>
+                    <option value="PE">Polyethylene (PE)</option>
+                    <option value="PVC">Polyvinyl Chloride (PVC)</option>
+                    <option value="PET">Polyethylene Terephthalate (PET)</option>
+                </select>
+            </div>
+            <div class="col-4">
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control ingredient-val" placeholder="0" min="0" max="100" oninput="calculateTotal()">
+                    <span class="input-group-text">%</span>
+                </div>
+            </div>
+            <div class="col-1 text-end px-0">
+                <button class="btn p-0 text-danger border-0 bg-transparent" onclick="this.parentElement.parentElement.remove(); calculateTotal();" title="delete"><i class="fas fa-trash-alt" style="font-size: 0.9rem;"></i></button>
+            </div>
+        `;
+        container.appendChild(newRow);
+    }
+
+    function calculateTotal() {
+        let total = 0;
+        const inputs = document.querySelectorAll('.ingredient-val');
+        inputs.forEach(input => { total += parseFloat(input.value) || 0; });
+        
+        const badge = document.getElementById('total-percent-badge');
+        const warning = document.getElementById('percent-warning');
+        badge.innerText = `Total: ${total}%`;
+        
+        if(total !== 100 && total > 0) {
+            badge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle total-badge';
+            warning.style.display = 'block';
+        } else if(total === 100) {
+            badge.className = 'badge bg-success text-white total-badge';
+            warning.style.display = 'none';
+        } else {
+            badge.className = 'badge bg-secondary total-badge';
+            warning.style.display = 'none';
+        }
+    }
+
+    function handleCatalystChange() {
+        const select = document.getElementById('catalyst-select');
+        const input = document.getElementById('catalyst-val');
+        if (select.value === 'None') {
+            input.value = 0;
+            input.disabled = true;
+        } else {
+            input.disabled = false;
+        }
+    }
+
+    function toggleSection(sectionId, checkbox) {
+        const section = document.getElementById(sectionId);
+        if(checkbox.checked) {
+            section.classList.remove('hidden-section');
+        } else {
+            section.classList.add('hidden-section');
+        }
+    }
+
+    // ฟังก์ชันคำนวณ O(%) อัตโนมัติและดักจับ Error
+    function calculateUltimate() {
+        let c = parseFloat(document.getElementById('ult-c').value) || 0;
+        let h = parseFloat(document.getElementById('ult-h').value) || 0;
+        let n = parseFloat(document.getElementById('ult-n').value) || 0;
+        let s = parseFloat(document.getElementById('ult-s').value) || 0;
+        
+        let sum = c + h + n + s;
+        let oField = document.getElementById('ult-o');
+        let warning = document.getElementById('ultimate-warning');
+        
+        // ถ้าผลรวมเกิน 100% ให้แสดงแจ้งเตือน และคืนค่า false
+        if (sum > 100) {
+            oField.value = 0;
+            oField.classList.replace('text-primary', 'text-danger');
+            warning.style.display = 'block';
+            return false;
+        } else {
+            // ถ้าไม่เกิน ให้คำนวณส่วนที่เหลือใส่ O
+            let oVal = 100 - sum;
+            // เคลียร์ช่องให้ว่างถ้ายังไม่ได้พิมพ์อะไรเลย
+            if (c === 0 && h === 0 && n === 0 && s === 0) {
+                oField.value = "";
+            } else {
+                oField.value = parseFloat(oVal.toFixed(3)); 
+            }
+            oField.classList.replace('text-danger', 'text-primary');
+            warning.style.display = 'none';
+            return true;
+        }
+    }
+
+    async function predict() {
+        let totalIng = 0;
+        document.querySelectorAll('.ingredient-val').forEach(input => totalIng += parseFloat(input.value) || 0);
+        if(totalIng !== 100) {
+            alert("System Error: Please verify that the total proportion of all ingredients equals 100%.");
+            return;
+        }
+
+        let payload = {};
+        const rows = document.querySelectorAll('.ingredient-row');
+        rows.forEach(row => {
+            let name = row.querySelector('.ingredient-name').value;
+            let val = parseFloat(row.querySelector('.ingredient-val').value) || 0;
+            if(payload[name]) { payload[name] += val; } else { payload[name] = val; }
+        });
+        
+        const catName = document.getElementById('catalyst-select').value;
+        const catVal = parseFloat(document.getElementById('catalyst-val').value) || 0;
+        if (catName !== 'None' && catVal > 0) { payload[catName] = catVal; }
+
+        payload['HHT (C)'] = parseFloat(document.getElementById('temp-val').value) || 0;
+        payload['Ti (min)'] = parseFloat(document.getElementById('time-val').value) || 0;
+
+        // ดึงค่าเคมี (ถ้าผู้ใช้ติ๊กและกรอกมา)
+        const isUltimateChecked = document.getElementById('toggle-ultimate').checked;
+        const isProximateChecked = document.getElementById('toggle-proximate').checked;
+
+        if(isUltimateChecked) {
+            if(!calculateUltimate()) {
+                alert("❌ System Error: Please verify that the total proportion of all Ultimate Analysis equals 100%.");
+                return; // สั่งหยุดการทำงานทันที
+            }
+            payload['C'] = parseFloat(document.getElementById('ult-c').value) || 0;
+            payload['H'] = parseFloat(document.getElementById('ult-h').value) || 0;
+            payload['N'] = parseFloat(document.getElementById('ult-n').value) || 0;
+            payload['S'] = parseFloat(document.getElementById('ult-s').value) || 0;
+            payload['O'] = parseFloat(document.getElementById('ult-o').value) || 0;
+        }
+        if(isProximateChecked) {
+            payload['Ash'] = parseFloat(document.getElementById('prox-ash').value) || 0;
+            payload['FC'] = parseFloat(document.getElementById('prox-fc').value) || 0;
+            payload['VM'] = parseFloat(document.getElementById('prox-vm').value) || 0;
+            payload['M'] = parseFloat(document.getElementById('prox-m').value) || 0;
+        }
+
+        const btn = document.getElementById('predict-btn');
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin me-2"></i> Processing Analytical Model...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('http://localhost:5000/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            
+            // ----------------------------------------------------
+            // 🌟 ส่วนใหม่: นำค่า Auto-fill มาแสดงที่หน้าเว็บ
+            // ----------------------------------------------------
+            if(data.inferred_chemistry && Object.keys(data.inferred_chemistry).length > 0) {
+                // บังคับให้หน้าต่างกรอกข้อมูลโชว์ขึ้นมา
+                document.getElementById('toggle-ultimate').checked = true;
+                document.getElementById('ultimate-section').classList.remove('hidden-section');
+                document.getElementById('toggle-proximate').checked = true;
+                document.getElementById('proximate-section').classList.remove('hidden-section');
+                
+                // นำตัวเลขไปหยอดในช่องต่างๆ และใส่สีให้รู้ว่าเป็นค่า Auto-fill
+                const inputFields = {
+                    'C': 'ult-c', 'H': 'ult-h', 'N': 'ult-n', 'S': 'ult-s', 'O': 'ult-o',
+                    'Ash': 'prox-ash', 'FC': 'prox-fc', 'VM': 'prox-vm', 'M': 'prox-m'
+                };
+                
+                for (const [key, elementId] of Object.entries(inputFields)) {
+                    let field = document.getElementById(elementId);
+                    field.value = data.inferred_chemistry[key].toFixed(2);
+                    // เปลี่ยนพื้นหลังให้เป็นสีเหลืองอ่อนๆ เพื่อเตือนว่าค่านี้ถูกเติมอัตโนมัติ
+                    field.style.backgroundColor = '#fef9c3'; 
+                    field.style.color = '#ca8a04';
+                    field.style.fontWeight = 'bold';
+                }
+                
+                // แสดงกล่องข้อความแจ้งเตือนสีเหลืองส้มด้านล่าง
+                const noticeBox = document.getElementById('reference-notice');
+                noticeBox.style.display = 'block';
+                noticeBox.className = 'alert mt-2 mb-0 py-2 px-3 border-0 rounded-2';
+                noticeBox.style.backgroundColor = '#fffbeb';
+                noticeBox.style.color = '#b45309';
+                noticeBox.style.border = '1px solid #fde68a';
+                noticeBox.innerHTML = '<i class="fas fa-magic me-2"></i> <b>Inferred Chemistry Status:</b> The system has automatically determined and filled in the closest matching values for Ultimate and Proximate Analysis.';
+            } else {
+                // ถ้าไม่ได้ใช้ Auto-fill (ผู้ใช้กรอกเอง) ซ่อนข้อความแจ้งเตือน
+                document.getElementById('reference-notice').style.display = 'none';
+                
+                // รีเซ็ตสีพื้นหลังให้กลับเป็นปกติ
+                const allFields = ['ult-c', 'ult-h', 'ult-n', 'ult-s', 'ult-o', 'prox-ash', 'prox-fc', 'prox-vm', 'prox-m'];
+                allFields.forEach(id => {
+                    let field = document.getElementById(id);
+                    field.style.backgroundColor = ''; 
+                    field.style.color = '';
+                    field.style.fontWeight = '';
+                });
+            }
+            // ----------------------------------------------------
+
+            const oilYield = data.results['Oil (%)'];
+            const charYield = data.results['Char (%)'];
+            const calculatedGas = 100 - (oilYield + charYield);
+            
+            document.getElementById('res-oil').innerText = oilYield.toFixed(2) + ' %';
+            document.getElementById('res-char').innerText = charYield.toFixed(2) + ' %';
+            document.getElementById('res-gas').innerText = Math.max(0, calculatedGas).toFixed(2) + ' %';
+            
+            document.getElementById('res-sulphur').innerText = data.results['Syield Wt%'].toFixed(3) + ' %';
+            document.getElementById('res-cetane').innerText = data.results['CnYield (PPM)'].toFixed(2);
+            document.getElementById('res-chlorine').innerText = data.results['Cl (ppm)Yield'].toFixed(1) + ' ppm';
+
+            btn.innerHTML = '<i class="fas fa-calculator me-2"></i> Execute Prediction';
+            btn.disabled = false;
+        } catch (error) {
+            console.log("เซิร์ฟเวอร์ยังไม่เปิดใช้งาน");
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fas fa-calculator me-2"></i> Execute Prediction';
+                btn.disabled = false;
+            }, 1000);
+        }
+    }
+</script>
+</body>
+</html>
